@@ -17,6 +17,17 @@ namespace Red_Code
         {
             var builder = WebApplication.CreateBuilder(args);
 
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy("AllowFrontend", policy =>
+                {
+                    policy
+                        .WithOrigins("http://localhost:4200") // Angular dev server
+                        .AllowAnyHeader()
+                        .AllowAnyMethod();
+                });
+            });
+
             // Add services to the container.
             builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAd"));
@@ -59,6 +70,7 @@ namespace Red_Code
             {
                 app.MapOpenApi();
             }
+            app.UseCors("AllowFrontend");
 
             app.UseHttpsRedirection();
 
