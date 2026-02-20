@@ -1,11 +1,9 @@
-using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Identity.Abstractions;
-using Microsoft.Identity.Web;
-using Microsoft.Identity.Web.Resource;
 using Red_Code.Application.Interfaces;
 using Red_Code.Application.Services;
+using Red_Code.Domain.Entities;
 using Red_Code.Infrastructure.Data;
 using Red_Code.Infrastructure.Repositories;
 
@@ -22,22 +20,54 @@ namespace Red_Code
                 options.AddPolicy("AllowFrontend", policy =>
                 {
                     policy
-                        .WithOrigins("http://localhost:4200") // Angular dev server
+                        .WithOrigins("http://localhost:4200")
                         .AllowAnyHeader()
                         .AllowAnyMethod();
                 });
             });
 
-            // Add services to the container.
-            builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-                .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAd"));
-
             // Configure Entity Framework and SQL Server
             builder.Services.AddDbContext<ApplicationDbContext>(options =>
                 options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+            // Add ASP.NET Core Identity
+            builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
+            {
+                options.SignIn.RequireConfirmedAccount = false;
+                
+                //Consciously closed to make the register easier
+
+                options.Password.RequireDigit = false;
+                options.Password.RequireLowercase = false;
+                options.Password.RequireUppercase = false;
+                options.Password.RequireNonAlphanumeric = false;
+                options.Password.RequiredLength = 3;
+            })
+            .AddEntityFrameworkStores<ApplicationDbContext>()
+            .AddDefaultTokenProviders();
+
+            // Add JWT Authentication
+            builder.Services.AddAuthentication(options =>
+            {
+                options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+                options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+            })
+            .AddJwtBearer(options =>
+            {
+                options.TokenValidationParameters = new Microsoft.IdentityModel.Tokens.TokenValidationParameters
+                {
+                    ValidateIssuer = true,
+                    ValidateAudience = true,
+                    ValidateLifetime = true,
+                    ValidateIssuerSigningKey = true,
+                    ValidIssuer = builder.Configuration["Jwt:Issuer"],
+                    ValidAudience = builder.Configuration["Jwt:Audience"],
+                    IssuerSigningKey = new Microsoft.IdentityModel.Tokens.SymmetricSecurityKey(
+                    System.Text.Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"] ?? ""))
+                };
+            });
+
             builder.Services.AddControllers();
-            // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
             builder.Services.AddOpenApi();
 
             // Register application services
@@ -74,8 +104,8 @@ namespace Red_Code
 
             app.UseHttpsRedirection();
 
+            app.UseAuthentication();
             app.UseAuthorization();
-
 
             app.MapControllers();
 

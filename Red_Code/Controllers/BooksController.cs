@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Red_Code.Application.DTOs;
 using Red_Code.Application.Interfaces;
@@ -6,6 +7,8 @@ namespace Red_Code.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
+    
     public class BooksController : ControllerBase
     {
         private readonly IBookService _bookService;
