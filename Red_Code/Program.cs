@@ -37,24 +37,27 @@ namespace Red_Code
                 builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
             }
 
-            // Build connection string, preferring DATABASE_URL (e.g. on Railway) and
+            // Build connection string and
             // falling back to individual DB_* environment variables
-            var databaseUrl = builder.Configuration["DATABASE_URL"];
-            string connectionString;
-            if (!string.IsNullOrWhiteSpace(databaseUrl))
-            {
-                connectionString = BuildConnectionStringFromDatabaseUrl(databaseUrl);
-            }
-            else
-            {
-                var dbHost = builder.Configuration["DB_HOST"] ?? "localhost";
-                var dbPort = builder.Configuration["DB_PORT"] ?? "5432";
-                var dbName = builder.Configuration["DB_NAME"] ?? "RedCodeDb";
-                var dbUser = builder.Configuration["DB_USER"] ?? "postgres";
-                var dbPassword = builder.Configuration["DB_PASSWORD"] ?? "postgres";
+            var dbHost = builder.Configuration["DB_HOST"];
+            var dbPort = builder.Configuration["DB_PORT"] ?? "5432";
+            var dbName = builder.Configuration["DB_NAME"];
+            var dbUser = builder.Configuration["DB_USER"];
+            var dbPassword = builder.Configuration["DB_PASSWORD"];
 
-                connectionString = $"Host={dbHost};Port={dbPort};Database={dbName};Username={dbUser};Password={dbPassword}";
+            if (new[] { dbHost, dbName, dbUser, dbPassword }.Any(string.IsNullOrWhiteSpace))
+            {
+                throw new Exception("Database environment variables are missing");
             }
+
+            var connectionString =
+                $"Host={dbHost};" +
+                $"Port={dbPort};" +
+                $"Database={dbName};" +
+                $"Username={dbUser};" +
+                $"Password={dbPassword};" +
+                $"SSL Mode=Require;Trust Server Certificate=true;" +
+                $"Prefer IPv6=false;";
 
             // Override the connection string from appsettings.json
             builder.Configuration["ConnectionStrings:DefaultConnection"] = connectionString;
