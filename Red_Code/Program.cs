@@ -30,14 +30,31 @@ namespace Red_Code
 
             var builder = WebApplication.CreateBuilder(args);
 
-            // Build connection string from environment variables
-            var dbHost = builder.Configuration["DB_HOST"] ?? "localhost";
-            var dbPort = builder.Configuration["DB_PORT"] ?? "5432";
-            var dbName = builder.Configuration["DB_NAME"] ?? "RedCodeDb";
-            var dbUser = builder.Configuration["DB_USER"] ?? "postgres";
-            var dbPassword = builder.Configuration["DB_PASSWORD"] ?? "postgres";
+            // When running on platforms like Railway, the port is provided via the PORT environment variable
+            var port = Environment.GetEnvironmentVariable("PORT");
+            if (!string.IsNullOrWhiteSpace(port))
+            {
+                builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+            }
 
-            var connectionString = $"Host={dbHost};Port={dbPort};Database={dbName};Username={dbUser};Password={dbPassword}";
+            // Build connection string, preferring DATABASE_URL (e.g. on Railway) and
+            // falling back to individual DB_* environment variables
+            var databaseUrl = builder.Configuration["DATABASE_URL"];
+            string connectionString;
+            if (!string.IsNullOrWhiteSpace(databaseUrl))
+            {
+                connectionString = BuildConnectionStringFromDatabaseUrl(databaseUrl);
+            }
+            else
+            {
+                var dbHost = builder.Configuration["DB_HOST"] ?? "localhost";
+                var dbPort = builder.Configuration["DB_PORT"] ?? "5432";
+                var dbName = builder.Configuration["DB_NAME"] ?? "RedCodeDb";
+                var dbUser = builder.Configuration["DB_USER"] ?? "postgres";
+                var dbPassword = builder.Configuration["DB_PASSWORD"] ?? "postgres";
+
+                connectionString = $"Host={dbHost};Port={dbPort};Database={dbName};Username={dbUser};Password={dbPassword}";
+            }
 
             // Override the connection string from appsettings.json
             builder.Configuration["ConnectionStrings:DefaultConnection"] = connectionString;
@@ -142,6 +159,28 @@ namespace Red_Code
             app.MapControllers();
 
             await app.RunAsync();
+        }
+
+        private static string BuildConnectionStringFromDatabaseUrl(string databaseUrl)
+        {
+            // Expected format: postgres://user:password@host:port/database
+            if (string.IsNullOrWhiteSpace(databaseUrl))
+            {
+                throw new ArgumentException("DATABASE_URL configuration is empty.", nameof(databaseUrl));
+            }
+
+            var uri = new Uri(databaseUrl);
+
+            var userInfo = uri.UserInfo.Split(':', 2);
+            var user = Uri.UnescapeDataString(userInfo[0]);
+            var password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : string.Empty;
+
+            var host = uri.Host;
+            var port = uri.Port > 0 ? uri.Port : 5432;
+            var database = uri.AbsolutePath.TrimStart('/');
+
+            // Basic Npgsql connection string; additional options (like SSL) can be appended via env if needed
+            return $"Host={host};Port={port};Database={database};Username={user};Password={password}";
         }
 
         private static void LoadEnvFile(string path)
