@@ -13,7 +13,28 @@ namespace Red_Code
     {
         public static async Task Main(string[] args)
         {
+            // Load development-specific environment variables from .env.development before building configuration
+            var environmentName = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
+            if (string.Equals(environmentName, "Development", StringComparison.OrdinalIgnoreCase))
+            {
+                var contentRoot = System.IO.Directory.GetCurrentDirectory();
+                var envFilePath = System.IO.Path.Combine(contentRoot, ".env.development");
+                LoadEnvFile(envFilePath);
+            }
+
             var builder = WebApplication.CreateBuilder(args);
+
+            // Build connection string from environment variables
+            var dbHost = builder.Configuration["DB_HOST"] ?? "localhost";
+            var dbPort = builder.Configuration["DB_PORT"] ?? "5432";
+            var dbName = builder.Configuration["DB_NAME"] ?? "RedCodeDb";
+            var dbUser = builder.Configuration["DB_USER"] ?? "postgres";
+            var dbPassword = builder.Configuration["DB_PASSWORD"] ?? "postgres";
+
+            var connectionString = $"Host={dbHost};Port={dbPort};Database={dbName};Username={dbUser};Password={dbPassword}";
+
+            // Override the connection string from appsettings.json
+            builder.Configuration["ConnectionStrings:DefaultConnection"] = connectionString;
 
             builder.Services.AddCors(options =>
             {
@@ -115,6 +136,42 @@ namespace Red_Code
             app.MapControllers();
 
             await app.RunAsync();
+        }
+
+        private static void LoadEnvFile(string path)
+        {
+            if (!System.IO.File.Exists(path))
+            {
+                return;
+            }
+
+            foreach (var line in System.IO.File.ReadAllLines(path))
+            {
+                var trimmed = line.Trim();
+
+                // Skip empty lines and comments
+                if (string.IsNullOrEmpty(trimmed) || trimmed.StartsWith("#", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                var separatorIndex = trimmed.IndexOf('=', StringComparison.Ordinal);
+                if (separatorIndex <= 0)
+                {
+                    continue;
+                }
+
+                var key = trimmed.Substring(0, separatorIndex).Trim();
+                var value = trimmed.Substring(separatorIndex + 1).Trim();
+
+                if (key.Length == 0)
+                {
+                    continue;
+                }
+
+                // Values from .env.development override any existing process-level values for that key
+                Environment.SetEnvironmentVariable(key, value);
+            }
         }
     }
 }
