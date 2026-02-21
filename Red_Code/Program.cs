@@ -13,12 +13,18 @@ namespace Red_Code
     {
         public static async Task Main(string[] args)
         {
-            // Load development-specific environment variables from .env.development before building configuration
+            // Load environment-specific variables from .env.* before building configuration
             var environmentName = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
+            var contentRoot = System.IO.Directory.GetCurrentDirectory();
+
             if (string.Equals(environmentName, "Development", StringComparison.OrdinalIgnoreCase))
             {
-                var contentRoot = System.IO.Directory.GetCurrentDirectory();
                 var envFilePath = System.IO.Path.Combine(contentRoot, ".env.development");
+                LoadEnvFile(envFilePath);
+            }
+            else if (string.Equals(environmentName, "Production", StringComparison.OrdinalIgnoreCase))
+            {
+                var envFilePath = System.IO.Path.Combine(contentRoot, ".env.production");
                 LoadEnvFile(envFilePath);
             }
 
@@ -169,7 +175,13 @@ namespace Red_Code
                     continue;
                 }
 
-                // Values from .env.development override any existing process-level values for that key
+                // Do not allow env files to change the ASP.NET Core environment
+                if (string.Equals(key, "ASPNETCORE_ENVIRONMENT", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                // Values from env files override any existing process-level values for that key
                 Environment.SetEnvironmentVariable(key, value);
             }
         }
