@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Npgsql;
 using Red_Code.Application.Interfaces;
 using Red_Code.Application.Services;
 using Red_Code.Domain.Entities;
@@ -51,17 +50,16 @@ namespace Red_Code
                 throw new Exception("Database environment variables are missing");
             }
 
-            var csb = new NpgsqlConnectionStringBuilder
-            {
-                Host = dbHost,
-                Port = int.Parse(dbPort),
-                Database = dbName,
-                Username = dbUser,
-                Password = dbPassword,
-                SslMode = SslMode.Require
-            };
+            string escapedPassword = dbPassword!.Replace("\"", "\\\"");
 
-            var connectionString = csb.ConnectionString;
+            var connectionString =
+                $"Host={dbHost};" +
+                $"Port={dbPort};" +
+                $"Database={dbName};" +
+                $"Username={dbUser};" +
+                $"Password=\"{escapedPassword}\";" +
+                $"SSL Mode=Require;Trust Server Certificate=true;" +
+                $"Prefer IPv6=false;";
 
             // Override the connection string from appsettings.json
             builder.Configuration["ConnectionStrings:DefaultConnection"] = connectionString;
