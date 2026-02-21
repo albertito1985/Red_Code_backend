@@ -26,9 +26,9 @@ namespace Red_Code
                 });
             });
 
-            // Configure Entity Framework and SQL Server
+            // Configure Entity Framework and PostgreSQL
             builder.Services.AddDbContext<ApplicationDbContext>(options =>
-                options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+                options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
             // Add ASP.NET Core Identity
             builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
@@ -83,15 +83,20 @@ namespace Red_Code
             using (var scope = app.Services.CreateScope())
             {
                 var services = scope.ServiceProvider;
+                var logger = services.GetRequiredService<ILogger<Program>>();
                 try
                 {
+                    logger.LogInformation("Starting database migration and seeding...");
                     var context = services.GetRequiredService<ApplicationDbContext>();
                     await DbInitializer.SeedAsync(context);
+                    logger.LogInformation("Database migration and seeding completed successfully.");
                 }
                 catch (Exception ex)
                 {
-                    var logger = services.GetRequiredService<ILogger<Program>>();
-                    logger.LogError(ex, "An error occurred while seeding the database.");
+                    logger.LogError(ex, "An error occurred while seeding the database. Details: {Message}", ex.Message);
+                    logger.LogError("Inner Exception: {InnerException}", ex.InnerException?.Message ?? "None");
+                    // Re-throw to make the error visible
+                    throw;
                 }
             }
 
