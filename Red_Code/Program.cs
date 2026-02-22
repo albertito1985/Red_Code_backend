@@ -63,12 +63,17 @@ namespace Red_Code
             {
                 options.AddPolicy("AllowFrontend", policy =>
                 {
+                    // Read allowed origins from configuration/environment (e.g. FRONTEND_URL in .env files),
+                    // falling back to localhost during development if not set.
+                    var allowedOrigins = (builder.Configuration["FRONTEND_URL"] ?? "http://localhost:4200")
+                        .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
                     policy
-                        .WithOrigins("http://localhost:4200")
-                        .AllowAnyHeader()
-                        .AllowAnyMethod();
-                });
-            });
+						.WithOrigins(allowedOrigins)
+						.AllowAnyHeader()
+						.AllowAnyMethod();
+				});
+			});
 
             // Configure Entity Framework and PostgreSQL
             builder.Services.AddDbContext<ApplicationDbContext>(options =>
