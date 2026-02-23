@@ -363,3 +363,7 @@ MigrationBackup/
 FodyWeavers.xsd
 /Red_Code/.env.production
 /Red_Code/.env.development
+
+#Environment files
+.env.development
+.env.production
