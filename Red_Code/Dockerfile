@@ -14,13 +14,22 @@ RUN dotnet publish "Red_Code.csproj" -c Release -o /app/publish /p:UseAppHost=fa
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app
 
+# Create a non-root user for security best practices on Hetzner
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+
 # Copy published output
 COPY --from=build /app/publish .
 
-# ASP.NET Core will listen on the PORT environment variable (used by platforms like Railway)
-# You can still document a default port for local runs
+# Set ownership to non-root user
+RUN chown -R appuser:appuser /app
+
+# Switch to non-root user
+USER appuser
+
+# Expose port 8080 (Hetzner will handle reverse proxy / port mapping)
 EXPOSE 8080
 
+# ASP.NET Core listens on the PORT environment variable or defaults to 8080
 ENV ASPNETCORE_URLS=http://0.0.0.0:8080
 
 ENTRYPOINT ["dotnet", "Red_Code.dll"]
